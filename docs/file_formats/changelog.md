@@ -1,3 +1,5 @@
 # File Format Changelog
 
-This changelog is intentionally empty until the specification is versioned.
+## draft 0.1
+
+Initial draft specification for graph, cycles, copy-number bedGraph, interval BED, and visualization conventions.

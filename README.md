@@ -9,3 +9,4 @@ Start with the canonical file format documentation:
 - [Graph file](docs/file_formats/graph.md)
 - [Copy-number bedGraph](docs/file_formats/bedgraph.md)
 - [Amplicon intervals BED](docs/file_formats/intervals_bed.md)
+- [Sashimi and cycle visualizations](docs/file_formats/visualizations.md)

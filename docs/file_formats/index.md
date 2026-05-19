@@ -1,15 +1,17 @@
 # AmpliconSuite File Formats
 
-This directory documents the text formats that originated in AmpliconArchitect and are now produced or consumed across AmpliconSuite tools. The two first-class exchange formats are the graph file (`*_graph.txt`) and the cycles file (`*_cycles.txt`). The AA sashimi/SV plot is also a first-class user-facing output, but it is an image/report artifact rather than a machine-readable interchange format and is not specified here beyond its dependency on the graph and copy-number data.
+This directory documents the text formats that originated in AmpliconArchitect and are now produced or consumed across AmpliconSuite tools. The two first-class exchange formats are the graph file (`*_graph.txt`) and the cycles file (`*_cycles.txt`). Sashimi-style graph plots and cycle visualizations are first-class user-facing outputs; they are image/report artifacts rather than interchange files, so they are documented separately.
 
-History
+Spec version: draft 0.1. For now, this documentation is versioned at the repository level. If a future change breaks compatibility for only one file format, add a per-format version note to that page and record the change in [changelog.md](changelog.md).
+
+## History
 
 AmpliconArchitect defined a breakpoint graph representation for focal amplifications and wrote one graph file plus one cycles file per amplicon. The current AA README describes these formats in its file formats section and remains the starting point for this specification. Long-read and downstream tools now use the same core records but add fields or sections for path constraints, paths, annotations, optical-map contigs, and BFB-specific scores.
 
-Data flow
+## Data Flow
 
 ```
-          WGS / long-read / OM inputs
+          short-read / long-read
                     |
         +-----------+-----------+
         |                       |
@@ -28,7 +30,7 @@ Data flow
         +--> AmpliconSuiteAggregator archival packaging
 ```
 
-Tool matrix
+## Tool Matrix
 
 | Tool | Graph | Cycles | Related outputs |
 | --- | --- | --- | --- |
@@ -43,11 +45,11 @@ Tool matrix
 | AmpliconReconstructorOM | reads AA graph, rewrites graph/CMAP | reads AA cycles and writes path cycles with `Contigs` | graph BED/bedGraph |
 | AmpliconSuiteAggregator | preserves graph/cycles files | preserves graph/cycles files | packages CNV BEDs and classification BEDs |
 
-Divergence
+## Divergence
 
 The shared core is keyword-oriented, not header-strict. Many parsers skip headers and accept any line starting with `sequence`, `concordant`, `discordant`, `source`, `Segment`, `Interval`, or `Cycle=`. CoRAL and BFBArchitect use `PredictedCN` and `NumberOfLongReads` headers instead of AA's `PredictedCopyCount` and `NumberOfReadPairs`. Several tools append semicolon fields to cycle records. These extensions are documented on the format pages and should not be assumed to be present in baseline AA output.
 
-Audit method
+## Audit Method
 
 The parser/writer survey for this document was done from scratch checkouts of the AmpliconSuite GitHub organization under `/tmp/as-format-audit`, leaving upstream repositories unmodified. To repeat it:
 
@@ -61,10 +63,13 @@ rg -n "_graph\.txt|_cycles\.txt|SequenceEdge|BreakpointEdge|Cycle=|path_constrai
 rg -n "def .*cycle|def .*graph|write.*cycle|read.*cycle|write.*graph|read.*graph|class .*Graph" /tmp/as-format-audit -g '!**/.git/**'
 ```
 
-Canonical pages
+The implementation-level parser/writer index is intentionally kept in [notes.md](notes.md), not in the public spec pages, because file paths and function names drift faster than the file contracts.
+
+## Canonical Pages
 
 - [Cycles file](cycles.md)
 - [Graph file](graph.md)
 - [Copy-number bedGraph](bedgraph.md)
 - [Amplicon intervals BED](intervals_bed.md)
+- [Sashimi and cycle visualizations](visualizations.md)
 - [Changelog](changelog.md)

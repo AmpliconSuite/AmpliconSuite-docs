@@ -2,20 +2,23 @@
 
 The cycles file is a text file named like `{out}_amplicon{id}_cycles.txt`. It lists amplicon intervals, graph segments, and decomposed structures as segment walks. AmpliconArchitect's output is the baseline format.
 
-File structure
+Spec version: draft 0.1.
+
+## File Structure
 
 ```
+<optional comment/header line>
 Interval    <interval_id>    <chrom>    <start>    <end>
 ...
 List of cycle segments
 Segment     <segment_id>     <chrom>    <start>    <end>
 ...
-Cycle=<cycle_id>;Copy_count=<copy_count>;Segments=<segment_id><orientation>,...
+Cycle=<cycle_id>;Copy_count=<copy_count>;Segments=<segment_id><orientation>,...;<optional_key>=<optional_value>
 ```
 
-The section label `List of cycle segments` is conventional. Most parsers identify records by line prefixes and do not require the label.
+The section label `List of cycle segments` is conventional. Most parsers identify records by line prefixes and do not require the label. A file may begin with one or more comment or metadata lines, commonly beginning with `#`; ecSimulator uses this pattern.
 
-Interval records
+## Interval Records
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -25,7 +28,7 @@ Interval records
 | `start` | integer | Coordinate of the first basepair. |
 | `end` | integer | Coordinate of the last basepair. |
 
-Segment records
+## Segment Records
 
 | Field | Type | Meaning |
 | --- | --- | --- |
@@ -35,7 +38,7 @@ Segment records
 | `start` | integer | Coordinate of the first basepair. |
 | `end` | integer | Coordinate of the last basepair. |
 
-Cycle records
+## Cycle Records
 
 Cycle lines are semicolon-separated key/value fields. Baseline AA fields are:
 
@@ -47,33 +50,37 @@ Cycle lines are semicolon-separated key/value fields. Baseline AA fields are:
 
 The last listed segment connects back to the first listed segment for circular cycles.
 
-Segment orientation
+Cycle and path records may contain additional semicolon-separated `key=value` fields. Readers should parse the record into a key/value map, require the fields they need, and preserve unknown fields when rewriting. Known extension fields include `Length`, `Path_constraints_satisfied`, `IsCyclicPath`, `CycleClass`, `Contigs`, `Score`, and `Multiplicity`.
+
+## Segment Orientation
 
 `+` means the structure traverses the segment from its `start` coordinate to its `end` coordinate. `-` means the structure traverses the segment from `end` to `start`.
 
-Segment 0 convention
+## Segment 0 Convention
 
 Segment ID `0` is reserved for the source/connection vertex. AA documents that a cycle may contain segment `0` either zero times or two times. A line containing `0` represents a linear path whose endpoints connect to undetermined or out-of-interval positions. AA examples and CoRAL path output commonly use `0+` at the beginning and `0-` at the end.
 
-Divergence
+## Divergence
 
 ecSimulator currently writes non-circular structures as `0+, ..., 0+`, while CoRAL writes paths as `0+, ..., 0-`. AA's README says segment `0` may occur two times but does not canonize the sign pair. Consumers should treat any `0` item as a source/path sentinel unless they need stricter path orientation semantics.
 
-Informal grammar
+## Informal Grammar
 
 ```
-cycles_file     ::= interval_line* segment_section segment_line+ extension_section* structure_line+
+cycles_file     ::= header_line* interval_line* segment_section segment_line+ extension_section* structure_line+
+header_line     ::= "#" text | other_metadata_line
 interval_line   ::= "Interval" TAB id TAB chrom TAB integer TAB integer
 segment_section ::= text line, conventionally "List of cycle segments"
 segment_line    ::= "Segment" TAB id TAB chrom TAB integer TAB integer
 structure_line  ::= cycle_line | extension_path_line
 cycle_line      ::= "Cycle=" id ";" "Copy_count=" number ";" "Segments=" segment_walk extension_field*
+extension_path_line ::= "Path=" id ";" "Copy_count=" number ";" "Segments=" segment_walk extension_field*
 segment_walk    ::= oriented_segment ("," oriented_segment)*
 oriented_segment::= integer ("+" | "-")
 extension_field ::= ";" key "=" value
 ```
 
-Worked example
+## Worked Example
 
 ```
 Interval	1	chr1	100	399
@@ -84,11 +91,26 @@ Cycle=1;Copy_count=8.5;Segments=1+,2-
 Cycle=2;Copy_count=1.0;Segments=0+,1+,0-
 ```
 
-Tool-specific extensions
+## Real Data Excerpt
 
-CoRAL cycles
+This is a shortened CoRAL example from the [public CoRAL wiki](https://github.com/AmpliconSuite/CoRAL/wiki#cycles), included only to show realistic field shapes and path constraints:
 
-CoRAL writes AA-like intervals and segments, optional subpath-constraint sections, then `Cycle=` and `Path=` structures. `Path=` records have the same semicolon key/value style as cycle records and use `Segments=0+,<walk>,0-`. CoRAL can append `Path_constraints_satisfied=<comma-separated ids>`.
+```
+Interval	1	chr2	11450087	12860095
+List of cycle segments
+Segment	1	chr2	11450087	11551950
+Segment	2	chr2	11551951	11569465
+List of longest subpath constraints
+Path constraint	1	e14+:1,d1+:1,e18-:1,d4-:1,e20+:1	Support=181	Satisfied
+Extracted cycles
+Cycle=1;Copy_count=101.72274978772717;Segments=2+,3+,14+,18-,20+,21+,22+,11+,12+,5+,6+,7+,8+,9+;Path_constraints_satisfied=1,3,4,9,14
+```
+
+## Tool-Specific Extensions
+
+### CoRAL Cycles
+
+CoRAL writes AA-like intervals and segments, optional subpath-constraint sections, then `Cycle=` and `Path=` structures. The public CoRAL wiki describes these as the heaviest graph walks found by cycle extraction; if no cycle is found, CoRAL may output a heaviest path. `Path=` records have the same semicolon key/value style as cycle records and use `Segments=0+,<walk>,0-`. CoRAL can append `Path_constraints_satisfied=<comma-separated ids>`.
 
 ```
 List of longest subpath constraints
@@ -98,64 +120,46 @@ Cycle=1;Copy_count=10.0;Segments=1+,2+;Path_constraints_satisfied=1
 Path=2;Copy_count=2.0;Segments=0+,1-,0-;Path_constraints_satisfied=
 ```
 
-CycleExtractor cycles
+### CycleExtractor Cycles
 
 CycleExtractor writes extracted cycles and paths in a CoRAL-like form. Some writer paths omit `Interval` lines and begin at `List of cycle segments`; this means consumers that require intervals must derive them from segments or the original graph. CycleExtractor's constraint records may use `Path constraint` with a space instead of the graph file keyword `path_constraint`.
 
-BFBArchitect cycles
+### BFBArchitect Cycles
 
 BFBArchitect writes intervals and segments, then a `List of longest subpath constraints` label followed by `Path=` lines, not `Cycle=` lines. Path lines may append `Score=<value>` and `Multiplicity=<value>`. These fields are BFBArchitect-specific and are not baseline cycle fields.
 
-AmpliconClassifier annotated cycles
+### AmpliconClassifier Annotated Cycles
 
 AmpliconClassifier writes corrected/annotated cycle files with additional semicolon fields before `Segments`: `Length`, `IsCyclicPath`, and `CycleClass`. Consumers should preserve unknown key/value fields when rewriting.
 
-AmpliconReconstructorOM path cycles
+### AmpliconReconstructorOM Path Cycles
 
 AmpliconReconstructorOM writes AA-like cycles for optical-map paths with an additional `Contigs=<comma-separated contig ids>` field.
 
-ecSimulator cycles
+### ecSimulator Cycles
 
 ecSimulator writes a comment header, baseline intervals/segments, and `Cycle=1;Copy_count=1.0;Length=<bp>;Segments=<walk>`. The `Length` field is an extension.
 
-Fully resolved cyclic structures
+## Fully Resolved Cyclic Structures
 
 CycleExtractor's output is intended to represent extracted closed walks and paths from an input amplicon graph. Its closed structures are still serialized as `Cycle=` with segment orientations; its linear structures are serialized as `Path=` or as segment walks containing source segment `0`, depending on the writer path used. The file format alone does not prove biological completeness; it records the structure the tool emitted.
 
-Edge cases
+## Edge Cases
 
 Cycle lines may include extra semicolon fields. The most compatible parser reads the fields into a key/value map, requires `Copy_count` and `Segments` for baseline structures, and preserves unrecognized fields. Segment IDs should be parsed by removing the final orientation character, not by assuming a fixed number of digits. Several consumers ignore `Interval` records entirely.
 
-Parsers and writers in the wild
+## Tools Using Cycles Files
 
-| Repo | Path | Function or code |
-| --- | --- | --- |
-| AmpliconArchitect | `src/breakpoint_graph.py:590` | `cycle_decomposition.__init__()` parses cycles |
-| AmpliconArchitect | `src/breakpoint_graph.py:815` | `cycle_decomposition.__str__()` writes cycles |
-| AmpliconArchitect | `src/breakpoint_graph.py:578` | cycle logger writes `Cycle=` lines |
-| AmpliconArchitect | `src/cycle_visualization/draw_episome.py:79` | visualization parser for `Cycle=` |
-| AmpliconClassifier | `ampclasslib/ac_util.py:372` | `parseCycle()` |
-| AmpliconClassifier | `ampclasslib/ac_io.py:323` | `write_annotated_corrected_cycles_file()` |
-| AmpliconClassifier | `ampclasslib/convert_cycles_file.py:65` | `make_new_cycle()` |
-| CoRAL | `coral/output/cycle_output.py:24` | `output_cycles()` |
-| CoRAL | `coral/output/utils.py:36` | `get_single_cycle_str()` |
-| CoRAL | `coral/output/utils.py:66` | `get_single_path_str()` |
-| CoRAL | `coral/scoring/io_utils.py:17` | `read_cycles_intervals_to_bed()` |
-| CoRAL | `coral/scoring/io_utils.py:47` | `read_cycles_file_to_bed()` |
-| CoRAL | `coral/cycle2bed.py:13` | `convert_cycles_to_bed()` |
-| CoRAL | `coral/summary/parsing.py:350` | `parse_cycle_file()` |
-| BFBArchitect | `src/BFBArchitect.py:288` | `generate_cycle_file()` |
-| CycleExtractor | `CE.py:1423` | cycle string formatter |
-| CycleExtractor | `CE.py:1567` | `write_ILP_cycle_file()` |
-| CycleExtractor | `CE.py:2531` | `write_paths_in_ILP_cycle_file()` |
-| CycleExtractor | `CE.py:2644` | `write_all_cycles_and_paths()` |
-| CycleViz | `VizUtil.py:325` | `parse_cycles_file()` |
-| CycleViz | `convert_cycles_file.py:51` | `make_new_cycle()` |
-| ecSimulator | `src/ecSim_IO.py:98` | `write_cycles_file()` |
-| ecSimulator | `src/cycles_file_to_fasta.py:36` | `writeCycleFasta()` consumes cycles |
-| AmpliconReconstructorOM | `breakpoint_graph.py:678` | cycle parser |
-| AmpliconReconstructorOM | `breakpoint_graph.py:909` | cycle string writer |
-| AmpliconReconstructorOM | `OMPathFinder.py:910` | `write_path_cycles()` |
-| AmpliconReconstructorOM | `align_to_candidate_path.py:99` | `get_cycles_from_cnums()` |
-| AmpliconReconstructorOM | `AmpliconReconstructorOM.py:57` | `parse_cycles_file()` |
-| AmpliconSuiteAggregator | `src/asa_aggregator.py:50` | preserves `_cycles.txt` in AA result packaging |
+| Tool | Role |
+| --- | --- |
+| AmpliconArchitect | Produces baseline cycles files and consumes them for visualization and sequence export. |
+| AmpliconClassifier | Consumes AA cycles and writes annotated/corrected cycles variants. |
+| CoRAL | Produces long-read cycles/path files with path-constraint annotations; consumes cycles for conversion/scoring utilities. |
+| CycleExtractor | Consumes AA/CoRAL graph files and writes cycles/path files. |
+| CycleViz | Consumes cycles files for visualization and cycle conversion. |
+| BFBArchitect | Writes path-style cycles files with BFB-specific score fields. |
+| ecSimulator | Writes simulated AA-like cycles files. |
+| AmpliconReconstructorOM | Consumes AA cycles and writes optical-map path cycles variants. |
+| AmpliconSuiteAggregator | Preserves cycles files when packaging results. |
+
+Implementation-level locations are tracked in [notes.md](notes.md) for maintainers.
