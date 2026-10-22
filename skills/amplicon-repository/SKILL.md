@@ -123,7 +123,11 @@ Two caveats change how to read an `ecDNA` call:
   is `MIEN1` in hg38), so merge aliases before counting across builds.
 - **Copy numbers are per feature, not per gene.** `feature_max_copy_number` is
   an upper bound for any gene on the feature. If you plot or report a gene's
-  copy number from the API, say it is the feature's. Per-gene copy number of an
+  copy number from the API, say it is the feature's. Both numbers come from
+  the copy-number segments under the feature's genomic intervals, and features
+  of one amplicon can overlap (a `FAN` can span an `ecDNA`'s intervals), so two
+  features can report the same maximum. The length-weighted
+  `feature_median_copy_number` tells them apart. Per-gene copy number of an
   amplified gene is in the project archive (`*_gene_list.tsv`, column
   `gene_cn`). A gene on no feature in a sample was not focally amplified there;
   the API has no copy number for it, but the archive's genome-wide
